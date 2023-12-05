@@ -1,14 +1,19 @@
 'use client';
 import { CorrectionInfo } from '@/common/types';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MdArrowForward, MdCheck, MdClose } from 'react-icons/md';
+import { useCorrectionContext } from './CorrectionContext';
 
 interface ICorrectionprops {
     correction: CorrectionInfo;
+    id: string;
+    acceptCorrection: (correction: CorrectionInfo) => void;
+    selectCorrection: (id: string) => void;
 }
 
 export default function Correction(props: ICorrectionprops) {
     const {
+        id,
         correction_type,
         before_text,
         after_text,
@@ -16,12 +21,20 @@ export default function Correction(props: ICorrectionprops) {
         context_after,
     } = props.correction;
 
+    const { selectedCorrection } = useCorrectionContext();
+
     return (
         <label>
             <input
-                type='radio'
+                type='checkbox'
                 className='peer hidden'
                 name='correction_item'
+                checked={id === selectedCorrection}
+                onChange={() =>
+                    props.selectCorrection(
+                        id === selectedCorrection ? '' : props.id
+                    )
+                }
             />
             <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 transition-all duration-300 ease-in-out peer-checked:w-[320px] peer-checked:bg-gray-100'>
                 <div
@@ -51,14 +64,18 @@ export default function Correction(props: ICorrectionprops) {
                         <span
                             className={`${
                                 correction_type !== 'deletion'
-                                    ? 'underline'
+                                    ? `border-b-2 ${
+                                          correction_type === 'correction'
+                                              ? 'border-correctionAlteration'
+                                              : 'border-correctionInsertion'
+                                      }`
                                     : 'line-through'
                             }`}
                         >
                             {after_text}
                         </span>
                         {context_after ? (
-                            <span> {context_after}...</span>
+                            <span> {context_after}</span>
                         ) : (
                             <span>...</span>
                         )}
@@ -68,7 +85,12 @@ export default function Correction(props: ICorrectionprops) {
                     <button className='btn btn-circle btn-ghost btn-sm'>
                         <MdClose size={20} />
                     </button>
-                    <button className='btn btn-square btn-primary btn-sm '>
+                    <button
+                        className='btn btn-square btn-primary btn-sm '
+                        onClick={() => {
+                            props.acceptCorrection(props.correction);
+                        }}
+                    >
                         <MdCheck size={20} />
                     </button>
                 </div>

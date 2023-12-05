@@ -28,3 +28,12 @@ body {
         scrollbar-width: none; /* Firefox */
     }
 }
+
+/* Custom CSS Needed for TipTap PlaceHolder */
+.ProseMirror p.is-empty:first-child::before {
+    color: #adb5bd;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+}

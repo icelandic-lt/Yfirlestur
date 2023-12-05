@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Lato } from 'next/font/google';
 import './globals.css';
+import { CorrectionProvider } from '@/components/Corrections/CorrectionContext';
 
 const inter = Inter({ subsets: ['latin'] });
 const lato = Lato({ weight: '400', subsets: ['latin'] });
@@ -17,8 +18,8 @@ export default function RootLayout({
 }) {
     return (
         <html lang='is'>
-            <body className={`${inter.className} h-screen bg-white`}>
-                {children}
+            <body className={`${lato.className} h-screen bg-white`}>
+                <CorrectionProvider>{children}</CorrectionProvider>
             </body>
         </html>
     );
