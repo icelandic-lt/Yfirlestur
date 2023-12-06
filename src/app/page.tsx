@@ -6,7 +6,8 @@ export default function Home() {
     return (
         <div className='flex min-h-screen flex-col justify-between overflow-hidden'>
             <Header />
-            <main className='mt-[--header-size] flex h-[calc(100%-8rem)] grow overflow-hidden md:h-[calc(100%-9rem)]'>
+            {/* <main className='mt-[--header-size] flex h-[calc(100%-8rem)] grow overflow-hidden md:h-[calc(100%-9rem)]'> */}
+            <main className='flex h-full grow overflow-hidden'>
                 <EditorContainer />
             </main>
             <Footer />

@@ -1,4 +1,5 @@
 'use client';
+import { CorrectionInfo } from '@/common/types';
 import { Editor, useCurrentEditor } from '@tiptap/react';
 import React from 'react';
 import {
@@ -15,17 +16,18 @@ import {
 
 interface IEditorMenuProps {
     editor: Editor | null;
+    acceptAllCorrections: () => void;
 }
 
 export default function EditorMenu(props: IEditorMenuProps) {
-    const { editor } = props;
+    const { editor, acceptAllCorrections } = props;
 
     if (!editor) {
         return <div className='min-h-[calc(100vh-11rem)] w-full'></div>;
     }
 
     return (
-        <div className='fixed left-4 z-20 mb-6 flex w-[calc(100%-2em)] max-w-4xl flex-col gap-2 border-b-2 border-gray-200 bg-white pb-2 pt-4 sm:left-auto sm:mx-4 md:w-[calc(60%-2em)] lg:w-[calc(67%-2em)] xl:w-2/4'>
+        <div className='fixed left-4 top-[calc(var(--header-size)-1rem)] z-20 mb-6 flex w-[calc(100%-2em)] max-w-4xl flex-col gap-2 border-b-2 border-gray-200 bg-white pb-2 pt-6 sm:left-auto sm:mx-4 md:w-[calc(60%-2em)] lg:w-[calc(67%-2em)] xl:w-2/4'>
             <div className='flex flex-row'>
                 <button
                     onClick={() => {
@@ -142,7 +144,10 @@ export default function EditorMenu(props: IEditorMenuProps) {
                 </button>
             </div>
 
-            <button className='btn btn-primary btn-sm rounded-md sm:absolute sm:right-2'>
+            <button
+                className='btn btn-primary btn-sm rounded-md sm:absolute sm:right-2'
+                onClick={acceptAllCorrections}
+            >
                 <MdCheck />
                 <p>Samþykkja allt</p>
             </button>

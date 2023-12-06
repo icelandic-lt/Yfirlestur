@@ -12,31 +12,22 @@ declare module '@tiptap/core' {
     interface Commands<ReturnType> {
         correctionextension: {
             proofread: () => ReturnType;
-            acceptCorrection: (correction: CorrectionInfo) => ReturnType;
+            acceptCorrection: (
+                correction: CorrectionInfo,
+                nextCorrectionToSelect?: CorrectionInfo
+            ) => ReturnType;
+            rejectCorrection: (
+                correction: CorrectionInfo,
+                nextCorrectionToSelect?: CorrectionInfo
+            ) => ReturnType;
             selectCorrection: (id: string) => ReturnType;
+            acceptAllCorrections: (corrections: CorrectionInfo[]) => ReturnType;
         };
     }
 }
 
 let decorationSet: DecorationSet;
 let skipProofreading = false;
-
-const textCorrectionClickListener = (e: Event) => {
-    console.log("In textCorrectionClickListener's callback");
-    if (!e.target) return;
-
-    const correction = (e.target as HTMLSpanElement)
-        .getAttribute('correction')
-        ?.trim();
-
-    if (!correction) {
-        console.error('No correction found');
-        return;
-    }
-
-    const correctionInfo: CorrectionInfo = JSON.parse(correction);
-    console.log('Correction info for this word: ', correctionInfo);
-};
 
 type NodeWithPos = {
     node: ProseMirrorNode;
@@ -45,13 +36,27 @@ type NodeWithPos = {
 
 const proofreadEditedNodes = async (
     editor: CoreEditor,
-    addCorrection: (correction: CorrectionInfo) => void,
+    addCorrection: (
+        correction: CorrectionInfo,
+        oldDecorationSet: DecorationSet,
+        newDecorationSet: DecorationSet
+    ) => void,
     removeCorrectionById: (id: string) => void
 ) => {
+    const decorationsBeforeProofreading = decorationSet.find(
+        undefined,
+        undefined,
+        (spec) => {
+            return spec.correction_id;
+        }
+    );
+    console.log(
+        'Decoration set at start of proofreading: ',
+        decorationsBeforeProofreading
+    );
     let nodesToBeCorrectedWithPos: NodeWithPos[] = [];
     console.log('In newProofreadEditedNodes');
     editor.state.doc.descendants((node, pos) => {
-        console.log('Is text?: ', node.isText);
         if (node.type.name === 'paragraph' && node.textContent.trim() !== '') {
             if (
                 node.attrs.id in
@@ -148,7 +153,7 @@ const proofreadEditedNodes = async (
                                 from,
                                 to,
                                 {
-                                    class: `border-b-2 border-red-500 cursor-pointer correction focus:bg-blue-700`,
+                                    class: `border-b-2 border-red-500 cursor-pointer correction focus:bg-blue-700 sm:scroll-my-48`,
                                     nodeName: 'span',
                                     correction: JSON.stringify({
                                         word,
@@ -183,11 +188,17 @@ const proofreadEditedNodes = async (
                                     (original_words[j + 2]
                                         ? original_words[j + 2]
                                         : '...'),
+                                decoration: decoration,
                             } as CorrectionInfo;
-                            addCorrection(correction);
+                            const oldDecorationSet = decorationSet;
                             decorationSet = decorationSet.add(
                                 editor.state.doc,
                                 decorations
+                            );
+                            addCorrection(
+                                correction,
+                                oldDecorationSet,
+                                decorationSet
                             );
                         }
                         wordStart += word.length + 1;
@@ -203,6 +214,14 @@ const proofreadEditedNodes = async (
             setTimeout(() => {});
         });
 
+    // Find all
+    console.log(
+        'Decoration set at end of proofreading: ',
+        decorationSet.find(undefined, undefined, (spec) => {
+            return spec.correction_id;
+        })
+    );
+
     // Updating the editor storage with the new nodes
     nodesToBeCorrectedWithPos.forEach((nodeWithPos) => {
         editor.storage.correctionextension.correctedParagraphs[
@@ -213,8 +232,10 @@ const proofreadEditedNodes = async (
 
 const debouncedProofreadEditedNodes = debounce(proofreadEditedNodes, 3000);
 
-const acceptCorrection = (
+const acceptOrRejectCorrection = (
+    shouldAccept: boolean,
     correction: CorrectionInfo,
+    nextCorrectionToSelect: CorrectionInfo | undefined,
     editor: CoreEditor,
     removeCorrectionById: (id: string) => void
 ) => {
@@ -229,17 +250,39 @@ const acceptCorrection = (
     });
     const decoration = decorations[0];
 
+    // Find the highlighted decoration and remove it
+    let highLightDecorations = decorationSet.find(
+        undefined,
+        undefined,
+        (spec) => {
+            return spec.id === 'correction-highlight';
+        }
+    );
+    let highlightDecoration = highLightDecorations[0];
+
+    if (highlightDecoration) {
+        console.log('!!!Removing highlight decoration...');
+        decorationSet = decorationSet.remove([highlightDecoration]);
+    }
+
     // Apply the correction
     const { tr } = editor.state;
-    tr.insertText(
-        after_text,
-        decoration.from,
-        decoration.to //correct_decoration.from + before_text.length
-    );
+    if (shouldAccept) {
+        tr.insertText(
+            after_text,
+            decoration.from,
+            decoration.to //correct_decoration.from + before_text.length
+        );
+    }
     decorationSet = decorationSet.remove([decoration]);
     tr.setMeta('decorations', decorationSet);
     if (editor.view) {
         editor.view.dispatch(tr);
+    }
+
+    if (nextCorrectionToSelect) {
+        console.log('Selecting next correction');
+        selectCorrectionInText(nextCorrectionToSelect.id, editor.view);
     }
 };
 
@@ -278,19 +321,23 @@ const selectCorrectionInText = (id: string, editorView: EditorView) => {
         decorationSet = decorationSet.add(editorView.state.doc, [
             highlightDecoration,
         ]);
-        // tr.setSelection(
-        //     TextSelection.create(
-        //         editorView.state.doc,
-        //         decoration.from,
-        //         decoration.to
-        //     )
-        // );
     }
+    // The node containing the correction should now be scrolled into view
+    const node = document.getElementById(id);
+    if (node) {
+        console.log('Node that is being scrolled into view: ', node);
+        node.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+    }
+
     editorView.dispatch(tr);
 };
 
 export const CorrectionExtension = (
-    addCorrection: (correction: CorrectionInfo) => void,
+    addCorrection: (
+        correction: CorrectionInfo,
+        oldDecorationSet: DecorationSet,
+        newDecorationSet: DecorationSet
+    ) => void,
     removeCorrectionById: (id: string) => void,
     selectCorrection: (id: string) => void
 ) =>
@@ -340,13 +387,39 @@ export const CorrectionExtension = (
                         return true;
                     },
                 acceptCorrection:
-                    (correction: CorrectionInfo) =>
+                    (
+                        correction: CorrectionInfo,
+                        nextCorrectionToSelect: CorrectionInfo | undefined
+                    ) =>
                     ({ editor }: { editor: CoreEditor }) => {
                         console.log("STARTING ACCEPT CORRECTION'S CALLBACK");
                         setTimeout(
                             () =>
-                                acceptCorrection(
+                                acceptOrRejectCorrection(
+                                    true,
                                     correction,
+                                    nextCorrectionToSelect,
+                                    editor,
+                                    removeCorrectionById
+                                ),
+                            100
+                        );
+
+                        return true;
+                    },
+                rejectCorrection:
+                    (
+                        correction: CorrectionInfo,
+                        nextCorrectionToSelect: CorrectionInfo | undefined
+                    ) =>
+                    ({ editor }: { editor: CoreEditor }) => {
+                        console.log("STARTING REJECT CORRECTION'S CALLBACK");
+                        setTimeout(
+                            () =>
+                                acceptOrRejectCorrection(
+                                    false,
+                                    correction,
+                                    nextCorrectionToSelect,
                                     editor,
                                     removeCorrectionById
                                 ),
@@ -359,6 +432,23 @@ export const CorrectionExtension = (
                     (id: string) =>
                     ({ editor }: { editor: CoreEditor }) => {
                         selectCorrectionInText(id, editor.view);
+                        return true;
+                    },
+                acceptAllCorrections:
+                    (corrections: CorrectionInfo[]) =>
+                    ({ editor }: { editor: CoreEditor }) => {
+                        console.log('In acceptAllCorrections command');
+                        corrections.forEach((correction, i) => {
+                            setTimeout(() => {
+                                acceptOrRejectCorrection(
+                                    true,
+                                    correction,
+                                    undefined,
+                                    editor,
+                                    removeCorrectionById
+                                );
+                            }, 100);
+                        });
                         return true;
                     },
             };
@@ -383,7 +473,6 @@ export const CorrectionExtension = (
                 );
             }
         },
-        // A custom function to allow outside components to add event listeners to decorations
 
         addProseMirrorPlugins() {
             const key = new PluginKey('correctionextension');
@@ -398,15 +487,50 @@ export const CorrectionExtension = (
                         },
                         apply: (
                             tr: Transaction,
-                            old: DecorationSet,
+                            oldDecorationSet: DecorationSet,
                             oldState: EditorState,
                             newState: EditorState
                         ): DecorationSet => {
+                            const oldDecorations = decorationSet.find(
+                                undefined,
+                                undefined,
+                                (spec) => {
+                                    return spec.correction_id;
+                                }
+                            );
+
                             decorationSet = decorationSet.map(
                                 tr.mapping,
                                 tr.doc
                             );
-
+                            const newDecorations = decorationSet.find(
+                                undefined,
+                                undefined,
+                                (spec) => {
+                                    return spec.correction_id;
+                                }
+                            );
+                            const oldDecorationIds: string[] =
+                                oldDecorations.map(
+                                    (oldDecoration) =>
+                                        oldDecoration.spec.correction_id
+                                );
+                            const newDecorationIds: string[] =
+                                newDecorations.map(
+                                    (newDecoration) =>
+                                        newDecoration.spec.correction_id
+                                );
+                            // For each decoration that was removed, remove the corresponding correction
+                            if (
+                                oldDecorationIds.length >
+                                newDecorationIds.length
+                            ) {
+                                oldDecorationIds.forEach((oldID) => {
+                                    if (!newDecorationIds.includes(oldID)) {
+                                        removeCorrectionById(oldID);
+                                    }
+                                });
+                            }
                             return decorationSet;
                         },
                     },

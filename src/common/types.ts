@@ -9,6 +9,7 @@ export type CorrectionInfo = {
     after_text: string;
     context_before?: string;
     context_after?: string;
+    decoration: Decoration;
 };
 
 // type hints for the Correction response from the backend

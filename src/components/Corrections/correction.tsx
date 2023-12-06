@@ -8,6 +8,7 @@ interface ICorrectionprops {
     correction: CorrectionInfo;
     id: string;
     acceptCorrection: (correction: CorrectionInfo) => void;
+    rejectCorrection: (correction: CorrectionInfo) => void;
     selectCorrection: (id: string) => void;
 }
 
@@ -23,8 +24,24 @@ export default function Correction(props: ICorrectionprops) {
 
     const { selectedCorrection } = useCorrectionContext();
 
+    useEffect(() => {
+        // Scroll to the selected correction into view if it is not already in view
+        console.log('In useEffect, selectedCorrection: ', selectedCorrection);
+        const selectedCorrectionElement = document.getElementById(
+            `${selectedCorrection}_side_correction`
+        );
+        if (selectedCorrectionElement) {
+            console.log('Selected element found, scrolling into view');
+            selectedCorrectionElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'start',
+            });
+        }
+    }, [`${selectedCorrection}_side_correction` === `${id}_side_correction`]);
+
     return (
-        <label>
+        <label id={`${id}_side_correction`}>
             <input
                 type='checkbox'
                 className='peer hidden'
@@ -36,7 +53,7 @@ export default function Correction(props: ICorrectionprops) {
                     )
                 }
             />
-            <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 transition-all duration-300 ease-in-out peer-checked:w-[320px] peer-checked:bg-gray-100'>
+            <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 transition-all duration-150 ease-in-out peer-checked:w-[320px] peer-checked:bg-gray-100'>
                 <div
                     className={`w-2 ${
                         correction_type === 'correction'
@@ -82,7 +99,12 @@ export default function Correction(props: ICorrectionprops) {
                     </div>
                 </div>
                 <div className='hidden flex-col justify-between py-2 pr-2 peer-checked:group-[]:flex'>
-                    <button className='btn btn-circle btn-ghost btn-sm'>
+                    <button
+                        className='btn btn-circle btn-ghost btn-sm'
+                        onClick={() => {
+                            props.rejectCorrection(props.correction);
+                        }}
+                    >
                         <MdClose size={20} />
                     </button>
                     <button

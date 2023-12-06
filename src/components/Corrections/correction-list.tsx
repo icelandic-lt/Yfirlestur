@@ -1,17 +1,24 @@
 import { CorrectionInfo } from '@/common/types';
-import React from 'react';
+import React, { useEffect } from 'react';
 import Correction from './correction';
 import { CorrectionContext } from './CorrectionContext';
 import { Editor } from '@tiptap/react';
 
 interface ICorrectionListProps {
     acceptCorrection: (correction: CorrectionInfo) => void;
+    rejectCorrection: (correction: CorrectionInfo) => void;
     selectCorrection: (id: string) => void;
 }
 
 export default function CorrectionList(props: ICorrectionListProps) {
-    const { acceptCorrection } = props;
+    const { acceptCorrection, rejectCorrection, selectCorrection } = props;
     const { corrections } = React.useContext(CorrectionContext);
+
+    let testCorrections = corrections;
+
+    useEffect(() => {
+        testCorrections = corrections;
+    }, [corrections]);
 
     let keyIndex = 0;
     const correctionLength = corrections.length;
@@ -21,8 +28,8 @@ export default function CorrectionList(props: ICorrectionListProps) {
                 <h2 className='mb-6 ml-7 pt-6 text-lg font-bold'>
                     Ábendingar:
                 </h2>
-                <div className='no-scrollbar flex flex-col overflow-y-auto pb-40'>
-                    {corrections.map((correction) => {
+                <div className='no-scrollbar flex flex-col overflow-y-auto pb-[100%]'>
+                    {testCorrections.map((correction) => {
                         return (
                             <div
                                 key={correction.after_text + `_${keyIndex++}`}
@@ -33,7 +40,10 @@ export default function CorrectionList(props: ICorrectionListProps) {
                                         correction={correction}
                                         id={correction.id}
                                         acceptCorrection={acceptCorrection}
-                                        selectCorrection={props.selectCorrection}
+                                        rejectCorrection={rejectCorrection}
+                                        selectCorrection={
+                                            selectCorrection
+                                        }
                                     />
                                 </div>
                                 {keyIndex + 1 !== correctionLength && (

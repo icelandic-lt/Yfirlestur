@@ -35,6 +35,7 @@ import { CorrectionInfo } from '@/common/types';
 
 interface ITextEditorProps {
     editor: Editor;
+    acceptAllCorrections: () => void;
 }
 
 export default function TextEditor(props: ITextEditorProps) {
@@ -42,7 +43,10 @@ export default function TextEditor(props: ITextEditorProps) {
 
     return (
         <div className='flex grow justify-start overflow-hidden xl:justify-center'>
-            <EditorMenu editor={props.editor} />
+            <EditorMenu
+                editor={props.editor}
+                acceptAllCorrections={props.acceptAllCorrections}
+            />
             <div className='flex h-fit w-full flex-col items-center sm:top-20 md:w-3/5 lg:w-2/3 xl:w-2/4'>
                 <div className='h-fit w-full max-w-4xl px-4 xl:px-0'>
                     <EditorContent editor={props.editor} />
