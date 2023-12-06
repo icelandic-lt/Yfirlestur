@@ -40,6 +40,8 @@ export default function Correction(props: ICorrectionprops) {
         }
     }, [`${selectedCorrection}_side_correction` === `${id}_side_correction`]);
 
+    // Animation: transition-all duration-150 ease-in-out
+
     return (
         <label id={`${id}_side_correction`}>
             <input
@@ -53,7 +55,7 @@ export default function Correction(props: ICorrectionprops) {
                     )
                 }
             />
-            <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 transition-all duration-150 ease-in-out peer-checked:w-[320px] peer-checked:bg-gray-100'>
+            <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 peer-checked:w-[320px] peer-checked:bg-gray-100'>
                 <div
                     className={`w-2 ${
                         correction_type === 'correction'

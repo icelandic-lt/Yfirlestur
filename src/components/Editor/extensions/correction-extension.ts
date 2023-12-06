@@ -273,6 +273,26 @@ const acceptOrRejectCorrection = (
             decoration.from,
             decoration.to //correct_decoration.from + before_text.length
         );
+        // Get the paragraph node that contains the correction
+        tr.doc.nodesBetween(decoration.from, decoration.to, (node, pos) => {
+            if (node.type.name === 'paragraph') {
+                if (node) {
+                    console.log("Updating correctedParagraphs' node: ", node);
+                    if (
+                        node.attrs.id in
+                        editor.storage.correctionextension.correctedParagraphs
+                    ) {
+                        console.log(
+                            "ID WAS IN CORRECTEDPARAGRAPHS' NODES, UPDATING IT"
+                        );
+                        editor.storage.correctionextension.correctedParagraphs[
+                            node.attrs.id
+                        ] = { node, pos } as NodeWithPos;
+                    }
+                }
+                return;
+            }
+        });
     }
     decorationSet = decorationSet.remove([decoration]);
     tr.setMeta('decorations', decorationSet);
