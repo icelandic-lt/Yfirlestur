@@ -1,8 +1,7 @@
 'use client';
 import { CorrectionInfo } from '@/common/types';
-import React, { useEffect } from 'react';
+import React, { memo, useEffect } from 'react';
 import { MdArrowForward, MdCheck, MdClose } from 'react-icons/md';
-import { useCorrectionContext } from './CorrectionContext';
 
 interface ICorrectionprops {
     correction: CorrectionInfo;
@@ -10,9 +9,10 @@ interface ICorrectionprops {
     acceptCorrection: (correction: CorrectionInfo) => void;
     rejectCorrection: (correction: CorrectionInfo) => void;
     selectCorrection: (id: string) => void;
+    isSelected: boolean;
 }
 
-export default function Correction(props: ICorrectionprops) {
+export default memo(function Correction(props: ICorrectionprops) {
     const {
         id,
         correction_type,
@@ -22,24 +22,6 @@ export default function Correction(props: ICorrectionprops) {
         context_after,
     } = props.correction;
 
-    const { selectedCorrection } = useCorrectionContext();
-
-    useEffect(() => {
-        // Scroll to the selected correction into view if it is not already in view
-        console.log('In useEffect, selectedCorrection: ', selectedCorrection);
-        const selectedCorrectionElement = document.getElementById(
-            `${selectedCorrection}_side_correction`
-        );
-        if (selectedCorrectionElement) {
-            console.log('Selected element found, scrolling into view');
-            selectedCorrectionElement.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-                inline: 'start',
-            });
-        }
-    }, [`${selectedCorrection}_side_correction` === `${id}_side_correction`]);
-
     // Animation: transition-all duration-150 ease-in-out
 
     return (
@@ -48,11 +30,9 @@ export default function Correction(props: ICorrectionprops) {
                 type='checkbox'
                 className='peer hidden'
                 name='correction_item'
-                checked={id === selectedCorrection}
+                checked={props.isSelected}
                 onChange={() =>
-                    props.selectCorrection(
-                        id === selectedCorrection ? '' : props.id
-                    )
+                    props.selectCorrection(props.isSelected ? '' : props.id)
                 }
             />
             <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 peer-checked:w-[320px] peer-checked:bg-gray-100'>
@@ -121,4 +101,4 @@ export default function Correction(props: ICorrectionprops) {
             </div>
         </label>
     );
-}
+});

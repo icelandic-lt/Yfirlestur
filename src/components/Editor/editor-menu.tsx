@@ -1,7 +1,7 @@
 'use client';
 import { CorrectionInfo } from '@/common/types';
 import { Editor, useCurrentEditor } from '@tiptap/react';
-import React from 'react';
+import React, { memo } from 'react';
 import {
     MdFormatBold,
     MdFormatItalic,
@@ -19,7 +19,7 @@ interface IEditorMenuProps {
     acceptAllCorrections: () => void;
 }
 
-export default function EditorMenu(props: IEditorMenuProps) {
+export default memo(function EditorMenu(props: IEditorMenuProps) {
     const { editor, acceptAllCorrections } = props;
 
     if (!editor) {
@@ -153,4 +153,4 @@ export default function EditorMenu(props: IEditorMenuProps) {
             </button>
         </div>
     );
-}
+});

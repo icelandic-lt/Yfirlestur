@@ -39,8 +39,6 @@ interface ITextEditorProps {
 }
 
 export default function TextEditor(props: ITextEditorProps) {
-    const [timer, setTimer] = useState<number | null>(null);
-
     return (
         <div className='flex grow justify-start overflow-hidden xl:justify-center'>
             <EditorMenu

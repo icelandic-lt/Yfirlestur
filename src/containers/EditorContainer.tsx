@@ -29,19 +29,18 @@ import TextEditor from '@/components/Editor/text-editor';
 export default function EditorContainer() {
     const {
         corrections,
-        addCorrection,
+        updateCorrections,
+        clearCorrections,
         removeCorrectionById,
         setSelectedCorrectionById,
     } = useCorrectionContext();
 
-    // Use the addCorrection function as needed
-    const handleAddCorrection = (
-        correction: CorrectionInfo,
-        oldDecorationSet: DecorationSet,
+    const handleUpdateCorrections = (
+        addedCorrections: CorrectionInfo[],
+        removedCorrectionIds: string[],
         newDecorationSet: DecorationSet
     ) => {
-        // Call addCorrection with the necessary arguments
-        addCorrection(correction, oldDecorationSet, newDecorationSet);
+        updateCorrections(addedCorrections, removedCorrectionIds, newDecorationSet);
     };
 
     // Use the removeCorrection function as needed
@@ -60,7 +59,11 @@ export default function EditorContainer() {
     };
 
     const handleAcceptAllCorrections = () => {
-        editor?.commands.acceptAllCorrections(corrections);
+        console.log('In handleAcceptAllCorrections');
+        editor?.commands.acceptAllCorrections();
+        console.log('Clearing corrections...');
+        clearCorrections();
+        console.log('Corrections cleared!');
     };
 
     function getNextCorrection(correction: CorrectionInfo) {
@@ -134,7 +137,7 @@ export default function EditorContainer() {
                 types: ['heading', 'paragraph'],
             }),
             CorrectionExtension(
-                handleAddCorrection,
+                handleUpdateCorrections,
                 handleRemoveCorrectionById,
                 handleSelectCorrection
             ),

@@ -1,8 +1,7 @@
 import { CorrectionInfo } from '@/common/types';
-import React, { useEffect } from 'react';
+import React, { memo, useEffect } from 'react';
 import Correction from './correction';
 import { CorrectionContext } from './CorrectionContext';
-import { Editor } from '@tiptap/react';
 
 interface ICorrectionListProps {
     acceptCorrection: (correction: CorrectionInfo) => void;
@@ -12,13 +11,26 @@ interface ICorrectionListProps {
 
 export default function CorrectionList(props: ICorrectionListProps) {
     const { acceptCorrection, rejectCorrection, selectCorrection } = props;
-    const { corrections } = React.useContext(CorrectionContext);
-
-    let testCorrections = corrections;
+    const { corrections, selectedCorrection } =
+        React.useContext(CorrectionContext);
 
     useEffect(() => {
-        testCorrections = corrections;
-    }, [corrections]);
+        console.log('In useEffect, selectedCorrection: ', selectedCorrection);
+        // Scroll to the selected correction into view if it is not already in view
+        if (selectedCorrection !== '') {
+            const selectedCorrectionElement = document.getElementById(
+                `${selectedCorrection}_side_correction`
+            );
+            if (selectedCorrectionElement) {
+                console.log('Selected element found, scrolling into view');
+                selectedCorrectionElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                    inline: 'start',
+                });
+            }
+        }
+    }, [selectedCorrection]);
 
     let keyIndex = 0;
     const correctionLength = corrections.length;
@@ -29,7 +41,11 @@ export default function CorrectionList(props: ICorrectionListProps) {
                     Ábendingar:
                 </h2>
                 <div className='no-scrollbar flex flex-col overflow-y-auto pb-[100%]'>
-                    {testCorrections.map((correction) => {
+                    {corrections.map((correction) => {
+                        console.log(
+                            'CORRECTION IN CORRECTION LIST: ',
+                            correction
+                        );
                         return (
                             <div
                                 key={correction.after_text + `_${keyIndex++}`}
@@ -41,8 +57,9 @@ export default function CorrectionList(props: ICorrectionListProps) {
                                         id={correction.id}
                                         acceptCorrection={acceptCorrection}
                                         rejectCorrection={rejectCorrection}
-                                        selectCorrection={
-                                            selectCorrection
+                                        selectCorrection={selectCorrection}
+                                        isSelected={
+                                            selectedCorrection === correction.id
                                         }
                                     />
                                 </div>
