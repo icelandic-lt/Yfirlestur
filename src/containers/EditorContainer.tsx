@@ -23,10 +23,13 @@ import { useCorrectionContext } from '../components/Corrections/CorrectionContex
 import { DecorationSet } from 'prosemirror-view';
 
 import CorrectionList from '../components/Corrections/correction-list';
-import { CorrectionInfo } from '@/common/types';
+import { CorrectionInfo, TipTapCommands } from '@/common/types';
 import TextEditor from '@/components/Editor/text-editor';
+import { useCallback, useRef } from 'react';
 
 export default function EditorContainer() {
+    const editorRef = useRef<TipTapCommands>(null);
+
     const {
         corrections,
         updateCorrections,
@@ -35,132 +38,98 @@ export default function EditorContainer() {
         setSelectedCorrectionById,
     } = useCorrectionContext();
 
-    const handleUpdateCorrections = (
-        addedCorrections: CorrectionInfo[],
-        removedCorrectionIds: string[],
-        newDecorationSet: DecorationSet
-    ) => {
-        updateCorrections(addedCorrections, removedCorrectionIds, newDecorationSet);
-    };
+    const handleSelectCorrection = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+            e.preventDefault();
+            console.log('In handleSelectCorrection, id: ', id);
+            setSelectedCorrectionById(id);
+            editorRef.current?.selectCorrection(id);
+        },
+        []
+    );
 
-    // Use the removeCorrection function as needed
-    const handleRemoveCorrectionById = (id: string) => {
-        // Call removeCorrection with the necessary arguments
-        removeCorrectionById(id);
-    };
-
-    const handleSelectCorrection = (id: string) => {
-        console.log('In handleSelectCorrection, id: ', id);
-        setSelectedCorrectionById(id);
-        if (editor) {
-            console.log('Editor was present in handleSelectCorrection');
-            editor.commands.selectCorrection(id);
-        }
-    };
-
-    const handleAcceptAllCorrections = () => {
+    const handleAcceptAllCorrections = useCallback(() => {
         console.log('In handleAcceptAllCorrections');
-        editor?.commands.acceptAllCorrections();
+        editorRef.current?.acceptAllCorrections();
         console.log('Clearing corrections...');
         clearCorrections();
         console.log('Corrections cleared!');
-    };
+    }, []);
 
     function getNextCorrection(correction: CorrectionInfo) {
+        console.log('Correction in getNextCorrection: ', correction);
         let nextCorrectionToSelect: CorrectionInfo | undefined;
+        console.log(
+            'corrections.indexOf(correction): ',
+            corrections.indexOf(correction)
+        );
+        console.log('corrections.length: ', corrections.length);
+        console.log('Corrections: ', corrections);
         // Next correction in the list
         if (corrections.length !== 1) {
             if (corrections.indexOf(correction) === corrections.length - 1) {
                 // This was the last correction, select the one before it
                 nextCorrectionToSelect =
                     corrections[corrections.indexOf(correction) - 1];
-                console.log(
-                    'Previous correction: ',
-                    nextCorrectionToSelect.before_text
-                );
+                console.log('Previous correction: ', nextCorrectionToSelect);
             } else {
                 // This was not the last correction, select the next one
                 nextCorrectionToSelect =
                     corrections[corrections.indexOf(correction) + 1];
-                console.log(
-                    'Next correction: ',
-                    nextCorrectionToSelect.before_text
-                );
+                console.log('Next correction: ', nextCorrectionToSelect);
             }
         }
         return nextCorrectionToSelect;
     }
 
-    function handleAcceptCorrection(correction: CorrectionInfo) {
-        let nextCorrectionToSelect = getNextCorrection(correction);
-        editor?.commands.acceptCorrection(correction, nextCorrectionToSelect);
+    const handleAcceptCorrection = useCallback(
+        (
+            e: React.MouseEvent<HTMLButtonElement>,
+            correction: CorrectionInfo
+        ) => {
+            e.preventDefault();
+            let nextCorrectionToSelect = getNextCorrection(correction);
+            editorRef.current?.acceptCorrection(
+                correction,
+                nextCorrectionToSelect
+            );
 
-        if (nextCorrectionToSelect) {
-            setSelectedCorrectionById(nextCorrectionToSelect.id);
-        }
-    }
-
-    function handleRejectCorrection(correction: CorrectionInfo) {
-        let nextCorrectionToSelect = getNextCorrection(correction);
-        editor?.commands.rejectCorrection(correction, nextCorrectionToSelect);
-
-        if (nextCorrectionToSelect) {
-            setSelectedCorrectionById(nextCorrectionToSelect.id);
-        }
-    }
-
-    const editor = useEditor({
-        extensions: [
-            Document,
-            Text,
-            FontFamily,
-            TextStyle,
-            History,
-            Bold,
-            Italic,
-            Highlight,
-            Underline,
-            Strike,
-            HardBreak,
-            Heading,
-            ListItem,
-            Paragraph,
-            TextAlign.configure({
-                types: ['heading', 'paragraph'],
-            }),
-            Placeholder.configure({
-                placeholder: 'Sláðu inn texta til að lesa yfir…',
-                // emptyEditorClass:
-                //     'cursor-text before:content-[attr(data-placeholder)] before:absolute before:top-28 before:sm:top-20 before:left-0 before:text-gray-400 before:pointer-events-none',
-            }),
-            UniqueID.configure({
-                types: ['heading', 'paragraph'],
-            }),
-            CorrectionExtension(
-                handleUpdateCorrections,
-                handleRemoveCorrectionById,
-                handleSelectCorrection
-            ),
-        ],
-        editorProps: {
-            attributes: {
-                // class: 'pt-28 sm:pt-20 w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
-                class: 'pt-[11rem] sm:pt-[8rem] md:pt-[9rem] w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
-                spellcheck: 'false',
-            },
+            if (nextCorrectionToSelect) {
+                setSelectedCorrectionById(nextCorrectionToSelect.id);
+            }
         },
-        autofocus: true,
-    });
+        [corrections]
+    );
 
-    if (!editor) {
-        return null;
-    }
+    const handleRejectCorrection = useCallback(
+        (
+            e: React.MouseEvent<HTMLButtonElement>,
+            correction: CorrectionInfo
+        ) => {
+            e.preventDefault();
+            console.log('Correction: ', correction);
+            let nextCorrectionToSelect = getNextCorrection(correction);
+            console.log(
+                'Next correction to select: ',
+                nextCorrectionToSelect?.before_text
+            );
+            editorRef.current?.rejectCorrection(
+                correction,
+                nextCorrectionToSelect
+            );
+
+            if (nextCorrectionToSelect) {
+                setSelectedCorrectionById(nextCorrectionToSelect.id);
+            }
+        },
+        [corrections]
+    );
 
     return (
         <div className='flex w-full grow overflow-hidden'>
             <TextEditor
-                editor={editor}
                 acceptAllCorrections={handleAcceptAllCorrections}
+                ref={editorRef}
             />
             <CorrectionList
                 acceptCorrection={handleAcceptCorrection}

@@ -24,32 +24,151 @@ import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
 import HardBreak from '@tiptap/extension-hard-break';
-import { useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState,
+    forwardRef,
+    useImperativeHandle,
+    ForwardedRef,
+    useRef,
+} from 'react';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { Editor as CoreEditor } from '@tiptap/core';
 import { CorrectionExtension } from './extensions/correction-extension';
 import UniqueID from '@tiptap-pro/extension-unique-id';
 import { useCorrectionContext } from '../Corrections/CorrectionContext';
-import { Decoration } from 'prosemirror-view';
-import { CorrectionInfo } from '@/common/types';
+import { Decoration, DecorationSet } from 'prosemirror-view';
+import { CorrectionInfo, TipTapCommands } from '@/common/types';
 
 interface ITextEditorProps {
-    editor: Editor;
     acceptAllCorrections: () => void;
 }
 
-export default function TextEditor(props: ITextEditorProps) {
-    return (
-        <div className='flex grow justify-start overflow-hidden xl:justify-center'>
-            <EditorMenu
-                editor={props.editor}
-                acceptAllCorrections={props.acceptAllCorrections}
-            />
-            <div className='flex h-fit w-full flex-col items-center sm:top-20 md:w-3/5 lg:w-2/3 xl:w-2/4'>
-                <div className='h-fit w-full max-w-4xl px-4 xl:px-0'>
-                    <EditorContent editor={props.editor} />
+let TextEditor = forwardRef(
+    (props: ITextEditorProps, ref: ForwardedRef<TipTapCommands>) => {
+        const {
+            corrections,
+            updateCorrections,
+            clearCorrections,
+            removeCorrectionById,
+            setSelectedCorrectionById,
+        } = useCorrectionContext();
+
+        const handleUpdateCorrections = (
+            addedCorrections: CorrectionInfo[],
+            removedCorrectionIds: string[],
+            newDecorationSet: DecorationSet
+        ) => {
+            updateCorrections(
+                addedCorrections,
+                removedCorrectionIds,
+                newDecorationSet
+            );
+        };
+
+        const handleRemoveCorrectionById = (id: string) => {
+            removeCorrectionById(id);
+        };
+
+        const handleSelectCorrection = (id: string) => {
+            console.log('In handleSelectCorrection, id: ', id);
+            setSelectedCorrectionById(id);
+            if (editor) {
+                console.log('Editor was present in handleSelectCorrection');
+                editor.commands.selectCorrection(id);
+            }
+        };
+
+        const editor = useEditor({
+            extensions: [
+                Document,
+                Text,
+                FontFamily,
+                TextStyle,
+                History,
+                Bold,
+                Italic,
+                Highlight,
+                Underline,
+                Strike,
+                HardBreak,
+                Heading,
+                ListItem,
+                Paragraph,
+                TextAlign.configure({
+                    types: ['heading', 'paragraph'],
+                }),
+                Placeholder.configure({
+                    placeholder: 'Sláðu inn texta til að lesa yfir…',
+                    // emptyEditorClass:
+                    //     'cursor-text before:content-[attr(data-placeholder)] before:absolute before:top-28 before:sm:top-20 before:left-0 before:text-gray-400 before:pointer-events-none',
+                }),
+                UniqueID.configure({
+                    types: ['heading', 'paragraph'],
+                }),
+                CorrectionExtension(
+                    handleUpdateCorrections,
+                    handleRemoveCorrectionById,
+                    handleSelectCorrection
+                ),
+            ],
+            editorProps: {
+                attributes: {
+                    // class: 'pt-28 sm:pt-20 w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
+                    class: 'pt-[11rem] sm:pt-[8rem] md:pt-[9rem] w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
+                    spellcheck: 'false',
+                },
+            },
+            autofocus: true,
+        });
+
+        const editorRef: React.MutableRefObject<Editor | null> = useRef(null);
+        useImperativeHandle(ref, () => ({
+            acceptCorrection: (
+                correction: CorrectionInfo,
+                nextCorrection: CorrectionInfo | undefined
+            ) => {
+                editorRef.current?.commands.acceptCorrection(
+                    correction,
+                    nextCorrection
+                );
+            },
+            acceptAllCorrections: () => {
+                editorRef.current?.commands.acceptAllCorrections();
+            },
+            rejectCorrection: (
+                correction: CorrectionInfo,
+                nextCorrection: CorrectionInfo | undefined
+            ) => {
+                editorRef.current?.commands.rejectCorrection(
+                    correction,
+                    nextCorrection
+                );
+            },
+            selectCorrection: (id: string) => {
+                editorRef.current?.commands.selectCorrection(id);
+            },
+        }));
+
+        if (!editor) {
+            return null;
+        }
+        editorRef.current = editor;
+
+        return (
+            <div className='flex grow justify-start overflow-hidden xl:justify-center'>
+                <EditorMenu
+                    editor={editor}
+                    acceptAllCorrections={props.acceptAllCorrections}
+                />
+                <div className='flex h-fit w-full flex-col items-center sm:top-20 md:w-3/5 lg:w-2/3 xl:w-2/4'>
+                    <div className='h-fit w-full max-w-4xl px-4 xl:px-0'>
+                        <EditorContent editor={editor} />
+                    </div>
                 </div>
             </div>
-        </div>
-    );
-}
+        );
+    }
+);
+
+export default TextEditor;

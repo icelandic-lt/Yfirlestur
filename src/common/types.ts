@@ -60,3 +60,16 @@ export type CorrectionResponse = {
     readability_stats: any | null;
     rare_words: any | null;
 };
+
+export type TipTapCommands = {
+    acceptCorrection: (
+        correction: CorrectionInfo,
+        nextCorrection: CorrectionInfo | undefined
+    ) => void;
+    acceptAllCorrections: () => void;
+    rejectCorrection: (
+        correction: CorrectionInfo,
+        nextCorrection: CorrectionInfo | undefined
+    ) => void;
+    selectCorrection: (id: string) => void;
+};

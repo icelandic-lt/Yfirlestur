@@ -6,9 +6,18 @@ import { MdArrowForward, MdCheck, MdClose } from 'react-icons/md';
 interface ICorrectionprops {
     correction: CorrectionInfo;
     id: string;
-    acceptCorrection: (correction: CorrectionInfo) => void;
-    rejectCorrection: (correction: CorrectionInfo) => void;
-    selectCorrection: (id: string) => void;
+    acceptCorrection: (
+        e: React.MouseEvent<HTMLButtonElement>,
+        correction: CorrectionInfo
+    ) => void;
+    rejectCorrection: (
+        e: React.MouseEvent<HTMLButtonElement>,
+        correction: CorrectionInfo
+    ) => void;
+    selectCorrection: (
+        e: React.ChangeEvent<HTMLInputElement>,
+        id: string
+    ) => void;
     isSelected: boolean;
 }
 
@@ -31,11 +40,15 @@ export default memo(function Correction(props: ICorrectionprops) {
                 className='peer hidden'
                 name='correction_item'
                 checked={props.isSelected}
-                onChange={() =>
-                    props.selectCorrection(props.isSelected ? '' : props.id)
+                onChange={(e) =>
+                    props.selectCorrection(e, props.isSelected ? '' : props.id)
                 }
             />
-            <div className='group flex w-[300px] flex-row overflow-hidden rounded-l-md p-0 peer-checked:w-[320px] peer-checked:bg-gray-100'>
+            <div
+                className={`group flex flex-row overflow-hidden rounded-l-md p-0 ${
+                    props.isSelected ? 'w-[320px]' : 'w-[300px]'
+                } ${props.isSelected ? 'bg-gray-100' : 'bg-white'}`}
+            >
                 <div
                     className={`w-2 ${
                         correction_type === 'correction'
@@ -46,7 +59,11 @@ export default memo(function Correction(props: ICorrectionprops) {
                     } `}
                 ></div>
                 <div className='flex grow flex-col py-2 pl-2'>
-                    <strong className='hidden text-sm font-bold peer-checked:group-[]:block'>
+                    <strong
+                        className={`text-sm font-bold ${
+                            props.isSelected ? 'block' : 'hidden'
+                        }`}
+                    >
                         {correction_type === 'correction'
                             ? 'Möguleg villa:'
                             : correction_type === 'deletion'
@@ -58,7 +75,11 @@ export default memo(function Correction(props: ICorrectionprops) {
                         <MdArrowForward size={20} />
                         <p>{after_text}</p>
                     </div>
-                    <div className='hidden flex-wrap py-2 text-sm peer-checked:group-[]:block'>
+                    <div
+                        className={`flex-wrap py-2 text-sm ${
+                            props.isSelected ? 'block' : 'hidden'
+                        }`}
+                    >
                         {context_before && <span>{context_before} </span>}
                         <span
                             className={`${
@@ -80,19 +101,23 @@ export default memo(function Correction(props: ICorrectionprops) {
                         )}
                     </div>
                 </div>
-                <div className='hidden flex-col justify-between py-2 pr-2 peer-checked:group-[]:flex'>
+                <div
+                    className={`flex-col justify-between py-2 pr-2 ${
+                        props.isSelected ? 'flex' : 'hidden'
+                    }`}
+                >
                     <button
                         className='btn btn-circle btn-ghost btn-sm'
-                        onClick={() => {
-                            props.rejectCorrection(props.correction);
+                        onClick={(e) => {
+                            props.rejectCorrection(e, props.correction);
                         }}
                     >
                         <MdClose size={20} />
                     </button>
                     <button
                         className='btn btn-square btn-primary btn-sm '
-                        onClick={() => {
-                            props.acceptCorrection(props.correction);
+                        onClick={(e) => {
+                            props.acceptCorrection(e, props.correction);
                         }}
                     >
                         <MdCheck size={20} />
