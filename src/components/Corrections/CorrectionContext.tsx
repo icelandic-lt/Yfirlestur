@@ -30,7 +30,6 @@ export const CorrectionContext = createContext<CorrectionContextType>({
 export const CorrectionProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
-    console.log('CorrectionProvider rendered');
     const [corrections, setCorrections] = useState<CorrectionInfo[]>([]);
     const [selectedCorrection, setSelectedCorrection] = useState<string>('');
 
@@ -39,8 +38,6 @@ export const CorrectionProvider: React.FC<{ children: React.ReactNode }> = ({
         removedCorrectionIds: string[],
         newDecorationSet: DecorationSet
     ) => {
-        console.log('IN ADD CORRECTIONS');
-        console.log('adding corrections: ', addedCorrections);
         // Find all of the new decorations that were added and add them to an updated list of corrections
         const newDecorations = newDecorationSet.find();
         // Loop through the new decorations and when the correction_id matches one from the addedCorrections, add it to the newCorrections list at the right index
@@ -85,20 +82,21 @@ export const CorrectionProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     const removeCorrection = (correction: CorrectionInfo) => {
-        console.log('removing correction: ', correction);
+        console.log('Removing correction...');
         setCorrections((prevCorrections) =>
             prevCorrections.filter((c) => c !== correction)
         );
     };
 
     const removeCorrectionById = (id: string) => {
-        console.log('REMOVING correction by id: ', id);
+        console.log('Removing correction with id: ', id, '...');
         setCorrections((prevCorrections) =>
             prevCorrections.filter((c) => c.id !== id)
         );
     };
 
     const setSelectedCorrectionById = (id: string) => {
+        console.log('Setting selected correction to id: ', id);
         setSelectedCorrection(id);
     };
 

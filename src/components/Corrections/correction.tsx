@@ -1,6 +1,6 @@
 'use client';
 import { CorrectionInfo } from '@/common/types';
-import React, { memo, useEffect } from 'react';
+import React, { memo } from 'react';
 import { MdArrowForward, MdCheck, MdClose } from 'react-icons/md';
 
 interface ICorrectionprops {
@@ -21,7 +21,7 @@ interface ICorrectionprops {
     isSelected: boolean;
 }
 
-export default memo(function Correction(props: ICorrectionprops) {
+export default function Correction(props: ICorrectionprops) {
     const {
         id,
         correction_type,
@@ -47,7 +47,9 @@ export default memo(function Correction(props: ICorrectionprops) {
             <div
                 className={`group flex flex-row overflow-hidden rounded-l-md p-0 ${
                     props.isSelected ? 'w-[320px]' : 'w-[300px]'
-                } ${props.isSelected ? 'bg-gray-100' : 'bg-white'}`}
+                } ${
+                    props.isSelected ? 'bg-gray-100' : 'bg-white'
+                } transition-all duration-150 ease-in-out`}
             >
                 <div
                     className={`w-2 ${
@@ -76,29 +78,31 @@ export default memo(function Correction(props: ICorrectionprops) {
                         <p>{after_text}</p>
                     </div>
                     <div
-                        className={`flex-wrap py-2 text-sm ${
-                            props.isSelected ? 'block' : 'hidden'
+                        className={`h-12 max-w-[264px] flex-wrap items-end py-2 pr-2 text-sm ${
+                            props.isSelected ? 'flex' : 'hidden'
                         }`}
                     >
-                        {context_before && <span>{context_before} </span>}
-                        <span
-                            className={`${
-                                correction_type !== 'deletion'
-                                    ? `border-b-2 ${
-                                          correction_type === 'correction'
-                                              ? 'border-correctionAlteration'
-                                              : 'border-correctionInsertion'
-                                      }`
-                                    : 'line-through'
-                            }`}
-                        >
-                            {after_text}
-                        </span>
-                        {context_after ? (
-                            <span> {context_after}</span>
-                        ) : (
-                            <span>...</span>
-                        )}
+                        <div className='break-words'>
+                            {context_before && <span>{context_before} </span>}
+                            <span
+                                className={`${
+                                    correction_type !== 'deletion'
+                                        ? `border-b-2 ${
+                                              correction_type === 'correction'
+                                                  ? 'border-correctionAlteration'
+                                                  : 'border-correctionInsertion'
+                                          }`
+                                        : 'line-through'
+                                }`}
+                            >
+                                {after_text}
+                            </span>
+                            {context_after ? (
+                                <span> {context_after}</span>
+                            ) : (
+                                <span>...</span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div
@@ -126,4 +130,4 @@ export default memo(function Correction(props: ICorrectionprops) {
             </div>
         </label>
     );
-});
+}
