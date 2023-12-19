@@ -197,7 +197,7 @@ export default memo(function CorrectionList(props: ICorrectionListProps) {
     );
 
     return (
-        <div className='fixed right-0 top-[--header-size] hidden h-[calc(100%-var(--header-size))] flex-row justify-end md:flex'>
+        <div className='h-[calc(100%-8.5rem] fixed right-0 top-[8.5rem] hidden flex-row justify-end md:flex'>
             <div className='max-w-80 sticky flex h-full w-80 flex-col overflow-hidden'>
                 <h2 className='mb-6 ml-7 pt-6 text-lg font-bold'>
                     Ábendingar:

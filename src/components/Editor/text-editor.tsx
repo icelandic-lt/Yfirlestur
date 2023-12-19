@@ -39,6 +39,7 @@ import UniqueID from '@tiptap-pro/extension-unique-id';
 import { useCorrectionContext } from '../Corrections/CorrectionContext';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { CorrectionInfo, TipTapCommands } from '@/common/types';
+import { FontSize } from './extensions/text-size';
 
 interface ITextEditorProps {
     acceptAllCorrections: () => void;
@@ -84,6 +85,7 @@ let TextEditor = forwardRef(
                 Document,
                 Text,
                 FontFamily,
+                FontSize,
                 TextStyle,
                 History,
                 Bold,
@@ -115,7 +117,7 @@ let TextEditor = forwardRef(
             editorProps: {
                 attributes: {
                     // class: 'pt-28 sm:pt-20 w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
-                    class: 'pt-[11rem] sm:pt-[8rem] md:pt-[9rem] w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
+                    class: 'pt-[12rem] sm:pt-[9rem] md:pt-[10rem] w-[100%] max-w-4xl md:min-h-[calc(100vh-10rem)] min-h-[calc(100vh-9rem)] prose prose-base focus:outline-none overflow-y-auto pb-8',
                     spellcheck: 'false',
                 },
             },
@@ -160,6 +162,7 @@ let TextEditor = forwardRef(
                 <EditorMenu
                     editor={editor}
                     acceptAllCorrections={props.acceptAllCorrections}
+                    correctionCount={corrections.length}
                 />
                 <div className='flex h-fit w-full flex-col items-center sm:top-20 md:w-3/5 lg:w-2/3 xl:w-2/4'>
                     <div className='h-fit w-full max-w-4xl px-4 xl:px-0'>
