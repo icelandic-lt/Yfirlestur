@@ -24,11 +24,13 @@ interface ICorrectionprops {
 export default function Correction(props: ICorrectionprops) {
     const {
         id,
-        correction_type,
-        before_text,
-        after_text,
+        change_type,
         context_before,
         context_after,
+        lower_display_str,
+        before_lower_display_str,
+        after_lower_display_str,
+        upper_display_str,
     } = props.correction;
 
     // Animation: transition-all duration-150 ease-in-out
@@ -53,9 +55,9 @@ export default function Correction(props: ICorrectionprops) {
             >
                 <div
                     className={`w-2 ${
-                        correction_type === 'correction'
+                        change_type === 'edit'
                             ? 'bg-correctionAlteration'
-                            : correction_type === 'deletion'
+                            : change_type === 'delete'
                               ? 'bg-correctionDeletion'
                               : 'bg-correctionInsertion'
                     } `}
@@ -66,16 +68,47 @@ export default function Correction(props: ICorrectionprops) {
                             props.isSelected ? 'block' : 'hidden'
                         }`}
                     >
-                        {correction_type === 'correction'
-                            ? 'Möguleg villa:'
-                            : correction_type === 'deletion'
+                        {change_type === 'edit'
+                            ? 'Ábending:'
+                            : change_type === 'delete'
                               ? 'Óþarfa orð:'
                               : 'Viðbót:'}
                     </strong>
-                    <p className='text-sm'>{before_text}</p>
+                    <p className='text-sm'>{upper_display_str}</p>
                     <div className='flex flex-row items-center gap-1'>
                         <MdArrowForward size={20} />
-                        <p>{after_text}</p>
+                        <p
+                            className={
+                                change_type === 'delete' ? 'line-through' : ''
+                            }
+                        >
+                            {
+                                <span>
+                                    <span>{before_lower_display_str}</span>
+                                    <span
+                                        className={`${
+                                            change_type === 'insert'
+                                                ? 'border-b-2 border-correctionInsertion'
+                                                : change_type === 'delete'
+                                                  ? 'text-correctionDeletion line-through'
+                                                  : ''
+                                        }`}
+                                    >
+                                        <span
+                                            className={`${
+                                                change_type === 'delete'
+                                                    ? 'text-black'
+                                                    : ''
+                                            }`}
+                                        >
+                                            {lower_display_str}
+                                        </span>
+                                    </span>
+                                    <span>{after_lower_display_str}</span>
+                                </span>
+                            }
+                            {/* {changed_str} */}
+                        </p>
                     </div>
                     <div
                         className={`h-12 max-w-[264px] flex-wrap items-end py-2 pr-2 text-sm ${
@@ -86,16 +119,24 @@ export default function Correction(props: ICorrectionprops) {
                             {context_before && <span>{context_before} </span>}
                             <span
                                 className={`${
-                                    correction_type !== 'deletion'
+                                    change_type !== 'delete'
                                         ? `border-b-2 ${
-                                              correction_type === 'correction'
+                                              change_type === 'edit'
                                                   ? 'border-correctionAlteration'
                                                   : 'border-correctionInsertion'
                                           }`
-                                        : 'line-through'
+                                        : 'text-correctionDeletion line-through'
                                 }`}
                             >
-                                {after_text}
+                                <span
+                                    className={`${
+                                        change_type === 'delete'
+                                            ? 'text-black'
+                                            : ''
+                                    }`}
+                                >
+                                    {lower_display_str}
+                                </span>
                             </span>
                             {context_after ? (
                                 <span> {context_after}</span>

@@ -28,7 +28,6 @@ export default function EditorMenu(props: IEditorMenuProps) {
     if (!editor) {
         return <div className='min-h-[calc(100vh-11rem)] w-full'></div>;
     }
-    console.log('Editor is active: ', editor.isActive('bold'));
 
     return (
         <div className='fixed top-[calc(var(--header-size))] z-20 mb-6 flex w-full flex-col items-center gap-2 bg-neutral px-2 py-4 md:left-auto md:flex-row md:justify-center'>

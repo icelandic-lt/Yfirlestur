@@ -1,4 +1,9 @@
-import { CorrectionInfo } from '@/common/types';
+import {
+    Annotation,
+    CorrectionInfo,
+    CorrectionResponse,
+    CorrectionResult,
+} from '@/common/types';
 import { Extension } from '@tiptap/core';
 import { EditorState, TextSelection, Transaction } from '@tiptap/pm/state';
 import { Editor as CoreEditor } from '@tiptap/core';
@@ -7,6 +12,7 @@ import { Decoration, DecorationSet } from 'prosemirror-view';
 import { Node as ProseMirrorNode } from 'prosemirror-model';
 import { debounce } from 'lodash';
 import { EditorView } from '@tiptap/pm/view';
+import { v4 as uuidv4 } from 'uuid';
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
@@ -34,6 +40,145 @@ type NodeWithPos = {
     node: ProseMirrorNode;
     pos: number;
 };
+
+function createDecoration(
+    id: string,
+    annotation: Annotation,
+    nodeWithPos: NodeWithPos
+) {
+    const {
+        orig_str_idx,
+        orig_end_idx,
+        orig_str,
+        changed_start_idx,
+        changed_end_idx,
+        changed_str,
+        change_type,
+    } = annotation;
+
+    let from = nodeWithPos.pos + orig_str_idx + 1;
+    let to = nodeWithPos.pos + orig_end_idx;
+    if (change_type === 'insert') {
+        from = nodeWithPos.pos + orig_str_idx;
+        to = nodeWithPos.pos + orig_end_idx + 1;
+    }
+
+    // The offsets to where the text should actually be inserted relative to the decoration to and from
+    let fromOffset = 0;
+    let toOffset = 1;
+    if (change_type === 'insert') {
+        fromOffset = 1;
+        toOffset = 0;
+    }
+
+    return Decoration.inline(
+        from,
+        to,
+        {
+            class: `border-b-2 ${
+                change_type === 'delete'
+                    ? 'border-correctionDeletion'
+                    : change_type === 'edit'
+                      ? 'border-correctionAlteration'
+                      : 'border-correctionInsertion'
+            } cursor-pointer correction focus:bg-blue-700 sm:scroll-my-48`,
+            nodeName: 'span',
+            correction: JSON.stringify({
+                word: orig_str,
+                from: orig_str_idx,
+                to: orig_end_idx,
+            }),
+            id: id,
+        },
+        {
+            correction_id: id,
+            changed_str: changed_str,
+            type: change_type,
+            fromOffset: fromOffset,
+            toOffset: toOffset,
+        }
+    );
+}
+
+function createCorrectionInfo(
+    id: string,
+    annotation: Annotation,
+    nodeWithPos: NodeWithPos,
+    decoration: Decoration
+) {
+    const {
+        orig_str_idx,
+        orig_end_idx,
+        orig_str,
+        changed_start_idx,
+        changed_end_idx,
+        changed_str,
+        change_type,
+    } = annotation;
+
+    let str_before = orig_str;
+    let str_after = changed_str;
+    let lower_display_str: string | undefined = str_after;
+    let before_lower_display_str: string | undefined;
+    let after_lower_display_str: string | undefined;
+
+    if (change_type === 'insert') {
+        // Find the word after the location of the insertion. If there is no word, then find the word before
+        console.log(
+            'Substring from orig_str_idx to end: ',
+            nodeWithPos.node.textContent.substring(orig_str_idx)
+        );
+        let words = nodeWithPos.node.textContent
+            .substring(orig_str_idx)
+            .split(' ');
+        console.log('words: ', words);
+        if (words.length === 0) {
+            words = nodeWithPos.node.textContent
+                .substring(0, orig_str_idx)
+                .split(' ');
+            console.log(
+                "words was 0, so we're getting the word before, words: ",
+                words
+            );
+            str_before = words[words.length - 1];
+            str_after = str_before + ' ' + changed_str;
+            console.log('WORD BEFORE INSERT: ', str_before);
+            before_lower_display_str = str_before;
+        } else {
+            str_before = words[0];
+            str_after = changed_str + str_before;
+            console.log('WORD AFTER INSERT: ', str_before);
+            after_lower_display_str = str_before + ' ';
+        }
+    } else if (change_type === 'delete') {
+        lower_display_str = orig_str;
+    }
+
+    return {
+        id: id,
+        change_type: change_type,
+        orig_str_idx: orig_str_idx,
+        orig_end_idx: orig_str_idx,
+        orig_str: orig_str,
+        changed_str: changed_str,
+        context_before:
+            '...' +
+            nodeWithPos.node.textContent.substring(
+                orig_str_idx - 20,
+                orig_str_idx
+            ),
+        context_after:
+            nodeWithPos.node.textContent.substring(
+                orig_end_idx,
+                orig_end_idx + 20
+            ) + '...',
+        decoration: decoration,
+        lower_display_str: lower_display_str,
+        before_lower_display_str: before_lower_display_str,
+        after_lower_display_str: after_lower_display_str,
+        upper_display_str: str_before,
+    } as CorrectionInfo;
+}
 
 const proofreadEditedNodes = async (
     editor: CoreEditor,
@@ -109,7 +254,7 @@ const proofreadEditedNodes = async (
     const texts = nodesToBeCorrectedWithPos.map(
         (nodeWithPos) => nodeWithPos.node.textContent
     );
-    const response = await fetch('/api/correctText', {
+    await fetch('/api/correctText', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -119,71 +264,203 @@ const proofreadEditedNodes = async (
         }),
     })
         .then((res) => res.json())
-        .then((data) => {
-            const paragraphs: string[] = data;
-            // Check for differences in the text, and create the decorations for each difference
+        .then((data: CorrectionResponse) => {
+            console.log('data: ', data);
             const decorations: Decoration[] = [];
             const corrections: CorrectionInfo[] = [];
-            nodesToBeCorrectedWithPos.forEach(
-                (nodeWithPos: NodeWithPos, i: number) => {
-                    const response_words = paragraphs[i].split(' ');
-                    const original_words =
-                        nodeWithPos.node.textContent.split(' ');
-                    let wordStart = 0;
-                    original_words.forEach((word: string, j: number) => {
-                        if (word !== response_words[j]) {
-                            const wordEnd =
-                                wordStart + word.length + nodeWithPos.pos + 1;
-                            const from = wordStart + nodeWithPos.pos + 1;
-                            const to = wordEnd;
-                            const decoration = Decoration.inline(
-                                from,
-                                to,
-                                {
-                                    class: `border-b-2 border-red-500 cursor-pointer correction focus:bg-blue-700 sm:scroll-my-48`,
-                                    nodeName: 'span',
-                                    correction: JSON.stringify({
-                                        word,
-                                        from,
-                                        to,
-                                    }),
-                                    id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
-                                },
-                                {
-                                    correction_id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
-                                    replacement: response_words[j],
-                                }
+            let lastInsertAnnotation: Annotation | undefined;
+            data.results.forEach((result: CorrectionResult, i: number) => {
+                const nodeWithPos = nodesToBeCorrectedWithPos[i];
+                const annotations = result.diff_annotations;
+                const annotationLength = annotations.length;
+                annotations.forEach((annotation, j) => {
+                    const {
+                        orig_str_idx,
+                        orig_end_idx,
+                        orig_str,
+                        changed_start_idx,
+                        changed_end_idx,
+                        changed_str,
+                        change_type,
+                    } = annotation;
+                    if (lastInsertAnnotation) {
+                        // Check if this annotation is an insertion and in the same location as the previous one
+                        let shouldCreateCorrection = true;
+                        if (change_type === 'insert') {
+                            console.log(
+                                "lastInsertAnnotation was set, and it's an insert"
+                            );
+                            if (
+                                lastInsertAnnotation.orig_str_idx ===
+                                orig_str_idx
+                            ) {
+                                console.log(
+                                    "It's in the same location, updating lastInsertAnnotation"
+                                );
+                                // If so, then we need to combine the words and update the lastInsertAnnotation
+                                shouldCreateCorrection = false;
+                                lastInsertAnnotation.changed_str += changed_str;
+                                console.log(
+                                    'lastInsertAnnotation.changed_str: ',
+                                    lastInsertAnnotation.changed_str
+                                );
+                                lastInsertAnnotation.changed_end_idx =
+                                    changed_end_idx;
+                            }
+                        }
+                        if (shouldCreateCorrection) {
+                            console.log(
+                                'shouldCreateCorrection was true. Creating correction for lastInsertAnnotation'
+                            );
+                            // If this annotation is not an insertion, then we need to add the lastInsertAnnotation to the corrections
+                            const from =
+                                nodeWithPos.pos +
+                                lastInsertAnnotation.orig_str_idx;
+                            const to =
+                                nodeWithPos.pos +
+                                lastInsertAnnotation.orig_end_idx +
+                                1;
+                            const id = `${uuidv4()}_correction`;
+                            const decoration = createDecoration(
+                                id,
+                                lastInsertAnnotation,
+                                nodeWithPos
                             );
                             decorations.push(decoration);
-                            const correction = {
-                                id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
-                                correction_type: 'correction',
-                                from: from,
-                                to: to,
-                                before_text: word,
-                                after_text: response_words[j],
-                                context_before:
-                                    (original_words[j - 2]
-                                        ? `${original_words[j - 2]} `
-                                        : '') +
-                                    (original_words[j - 1]
-                                        ? original_words[j - 1]
-                                        : '...'),
-                                context_after:
-                                    (original_words[j + 1]
-                                        ? `${original_words[j + 1]} `
-                                        : '') +
-                                    (original_words[j + 2]
-                                        ? original_words[j + 2]
-                                        : '...'),
-                                decoration: decoration,
-                            } as CorrectionInfo;
+                            const correction = createCorrectionInfo(
+                                id,
+                                lastInsertAnnotation,
+                                nodeWithPos,
+                                decoration
+                            );
                             corrections.push(correction);
+                            lastInsertAnnotation = undefined;
                         }
-                        wordStart += word.length + 1;
-                    });
+                    }
+                    if (lastInsertAnnotation === undefined) {
+                        if (change_type === 'insert') {
+                            console.log(
+                                "It's an insert, setting lastInsertAnnotation. Changed text: ",
+                                changed_str
+                            );
+                            lastInsertAnnotation = annotation;
+                            return;
+                        }
+                        console.log(
+                            "lastCorrectedAnnotation was not set, creating correction for: ' , orig_str: ",
+                            orig_str,
+                            ' changed_str: ',
+                            changed_str
+                        );
+                        const from = nodeWithPos.pos + orig_str_idx + 1;
+                        const to = nodeWithPos.pos + orig_end_idx;
+                        const id = `${uuidv4()}_correction`;
+                        const decoration = createDecoration(
+                            id,
+                            annotation,
+                            nodeWithPos
+                        );
+                        decorations.push(decoration);
+                        const correction = createCorrectionInfo(
+                            id,
+                            annotation,
+                            nodeWithPos,
+                            decoration
+                        );
+                        corrections.push(correction);
+                    }
+                });
+                if (lastInsertAnnotation) {
+                    // If we have a lastInsertAnnotation, then we need to create a correction for it
+                    console.log(
+                        'lastInsertAnnotation was set, creating correction for it'
+                    );
+                    const from =
+                        nodeWithPos.pos + lastInsertAnnotation.orig_str_idx;
+                    const to =
+                        nodeWithPos.pos + lastInsertAnnotation.orig_end_idx + 1;
+                    const id = `${uuidv4()}_correction`;
+                    const decoration = createDecoration(
+                        id,
+                        lastInsertAnnotation,
+                        nodeWithPos
+                    );
+                    decorations.push(decoration);
+                    const correction = createCorrectionInfo(
+                        id,
+                        lastInsertAnnotation,
+                        nodeWithPos,
+                        decoration
+                    );
+                    corrections.push(correction);
+                    lastInsertAnnotation = undefined;
                 }
-            );
+            });
+
+            // const paragraphs: string[] = data;
+            // // Check for differences in the text, and create the decorations for each difference
+            // const decorations: Decoration[] = [];
+            // const corrections: CorrectionInfo[] = [];
+            // nodesToBeCorrectedWithPos.forEach(
+            //     (nodeWithPos: NodeWithPos, i: number) => {
+            //         const response_words = paragraphs[i].split(' ');
+            //         const original_words =
+            //             nodeWithPos.node.textContent.split(' ');
+            //         let wordStart = 0;
+            //         original_words.forEach((word: string, j: number) => {
+            //             if (word !== response_words[j]) {
+            //                 const wordEnd =
+            //                     wordStart + word.length + nodeWithPos.pos + 1;
+            //                 const from = wordStart + nodeWithPos.pos + 1;
+            //                 const to = wordEnd;
+            //                 const decoration = Decoration.inline(
+            //                     from,
+            //                     to,
+            //                     {
+            //                         class: `border-b-2 border-red-500 cursor-pointer correction focus:bg-blue-700 sm:scroll-my-48`,
+            //                         nodeName: 'span',
+            //                         correction: JSON.stringify({
+            //                             word,
+            //                             from,
+            //                             to,
+            //                         }),
+            //                         id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
+            //                     },
+            //                     {
+            //                         correction_id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
+            //                         changed_str: response_words[j],
+            //                     }
+            //                 );
+            //                 decorations.push(decoration);
+            //                 const correction = {
+            //                     id: `${nodeWithPos.node.attrs.id}_${from}_${to}_correction`,
+            //                     correction_type: 'correction',
+            //                     from: from,
+            //                     to: to,
+            //                     before_text: word,
+            //                     after_text: response_words[j],
+            //                     context_before:
+            //                         (original_words[j - 2]
+            //                             ? `${original_words[j - 2]} `
+            //                             : '') +
+            //                         (original_words[j - 1]
+            //                             ? original_words[j - 1]
+            //                             : '...'),
+            //                     context_after:
+            //                         (original_words[j + 1]
+            //                             ? `${original_words[j + 1]} `
+            //                             : '') +
+            //                         (original_words[j + 2]
+            //                             ? original_words[j + 2]
+            //                             : '...'),
+            //                     decoration: decoration,
+            //                 } as CorrectionInfo;
+            //                 corrections.push(correction);
+            //             }
+            //             wordStart += word.length + 1;
+            //         });
+            //     }
+            // );
             if (editor.view) {
                 decorationSet = decorationSet.add(
                     editor.view.state.doc,
@@ -219,7 +496,7 @@ const acceptOrRejectCorrection = (
     editor: CoreEditor,
     removeCorrectionById: (id: string) => void
 ) => {
-    const { id, after_text } = correction;
+    const { id, changed_str } = correction;
     // removeCorrectionById(id);
 
     skipProofreading = true;
@@ -229,6 +506,7 @@ const acceptOrRejectCorrection = (
         return spec.correction_id === id;
     });
     const decoration = decorations[0];
+    const { fromOffset, toOffset } = decoration.spec;
 
     if (highlightedDecoration) {
         decorationSet = decorationSet.remove([highlightedDecoration]);
@@ -238,9 +516,9 @@ const acceptOrRejectCorrection = (
     const { tr } = editor.state;
     if (shouldAccept) {
         tr.insertText(
-            after_text,
-            decoration.from,
-            decoration.to //correct_decoration.from + before_text.length
+            changed_str,
+            decoration.from + fromOffset,
+            decoration.to + toOffset
         );
         // Get the paragraph node that contains the correction
         tr.doc.nodesBetween(decoration.from, decoration.from, (node, pos) => {
@@ -285,7 +563,7 @@ const acceptAllCorrections = (editor: CoreEditor) => {
         const decoration = decorations[i];
         // Apply the correction
         tr.insertText(
-            decoration.spec.replacement,
+            decoration.spec.changed_str,
             decoration.from,
             decoration.to //correct_decoration.from + before_text.length
         );
@@ -326,12 +604,19 @@ const selectCorrectionInText = (id: string, editorView: EditorView) => {
     });
     if (decorations.length > 0) {
         const decoration = decorations[0];
+        const type: string = decoration.spec.type;
 
         highlightedDecoration = Decoration.inline(
             decoration.from,
             decoration.to,
             {
-                class: 'bg-red-500 bg-opacity-25',
+                class: `${
+                    type === 'delete'
+                        ? 'bg-correctionDeletion'
+                        : type === 'edit'
+                          ? 'bg-correctionAlteration'
+                          : 'bg-correctionInsertion'
+                } bg-opacity-25`,
             },
             {
                 id: 'correction-highlight',
